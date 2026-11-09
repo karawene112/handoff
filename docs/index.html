@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Handoff</title>
+  <meta name="description" content="Hand out work, track deadlines, and get told when something slips.">
+  <meta name="theme-color" content="#FFFFFF">
+  <!-- Security: the page may only load code from itself and the pinned Supabase library, and only talk to the Handoff database. -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://ctnetlnnticvwkvxmmws.supabase.co; connect-src 'self' https://ctnetlnnticvwkvxmmws.supabase.co wss://ctnetlnnticvwkvxmmws.supabase.co https://cdn.jsdelivr.net; object-src 'none'; base-uri 'self'; form-action 'self'">
+  <meta name="referrer" content="strict-origin-when-cross-origin">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="shell">
+    <aside class="sidebar" id="sidebar" hidden>
+      <a class="brand" href="#/"><img src="icon.svg" alt="" width="30" height="30"><span>Handoff</span></a>
+      <div class="ws" id="wsName"></div>
+      <nav class="side-nav" id="nav" aria-label="Main"></nav>
+      <div class="side-foot" id="who"></div>
+    </aside>
+    <div class="content">
+      <header class="mobile-top" id="mtop" hidden></header>
+      <main id="view"><p class="muted pad">Loading…</p></main>
+    </div>
+  </div>
+  <nav class="tabbar" id="tabbar" aria-label="Main" hidden></nav>
+  <div id="toast" role="status" hidden></div>
+  <noscript><p class="pad">Handoff needs JavaScript turned on.</p></noscript>
+  <script src="config.js"></script>
+  <script type="module" src="app.js"></script>
+</body>
+</html>
