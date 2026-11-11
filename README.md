@@ -1,6 +1,16 @@
-# Handoff
+# Delegiq
 
-Hand out work, track deadlines, and get emailed when something slips.
+**Hand out work, track deadlines, and get told when something slips.**
+
+**Try it:** https://karawene112.github.io/handoff/ · **Open the app:** https://karawene112.github.io/handoff/app/
+
+[![Watch the 90-second tour](docs/media/demo-poster.jpg)](docs/media/delegiq-demo.mp4)
+
+▶ [Watch the 90-second tour](docs/media/delegiq-demo.mp4)
+
+Delegiq is a web app for teams: managers hand out tasks (AI writes them from one sentence or a voice note), everyone sees only what their level allows, and reminders go out by email and WhatsApp before and after deadlines. It works in English, French and Arabic, on desktop and phone, and is sold as a monthly subscription with a 14-day free trial.
+
+**Built with:** plain HTML, CSS and JavaScript · Supabase (Postgres with row-level security, Auth with two-step sign-in, Edge Functions, Storage, cron) · Claude API · Resend · WhatsApp Cloud API · Lemon Squeezy · GitHub Pages.
 
 Everyone has a **level** (1 to 5) and a set of **numbered rights**. People can only manage others in **their own team** at a **lower level**, unless they have right 9.
 
@@ -35,7 +45,9 @@ The database enforces who sees what, so a team member can't see someone else's w
 
 | Folder | What it is |
 | --- | --- |
-| `docs/` | The website. Plain HTML, CSS and JavaScript, no build step. |
+| `docs/` | The sales page (`index.html`), Terms, Privacy and Refunds pages, and the demo video. |
+| `docs/app/` | The app itself. Plain HTML, CSS and JavaScript, no build step. |
+| `supabase/functions/billing/` | Receives payment events from Lemon Squeezy and switches each company's plan on or off. Already deployed. |
 | `supabase/functions/notify/` | The email sender. Already deployed to your Supabase project. |
 | `supabase/functions/ai/` | The AI: drafts a task from one sentence and writes the daily brief, using Claude. Already deployed. |
 | `supabase/functions/add-member/` | Creates a team member's login with a temporary password (managers only). Already deployed. |
@@ -62,7 +74,7 @@ People can switch to "one summary each morning" in Settings. Late, blocked and i
 
 ### 1. Put the website online
 
-**GitHub Pages:** in this repository, open Settings → Pages. Under "Build and deployment" pick **Deploy from a branch**, branch **main**, folder **/docs**, then Save. After a minute your site is at `https://<your-username>.github.io/handoff/`.
+**GitHub Pages:** in this repository, open Settings → Pages. Under "Build and deployment" pick **Deploy from a branch**, branch **main**, folder **/docs**, then Save. After a minute the sales page is at `https://<your-username>.github.io/handoff/` and the app at `https://<your-username>.github.io/handoff/app/`.
 
 **Or Vercel:** New Project → import this repository → set **Root Directory** to `docs` → Framework preset **Other** → Deploy.
 
@@ -70,13 +82,13 @@ People can switch to "one summary each morning" in Settings. Late, blocked and i
 
 In the Supabase dashboard for **handoff**, open Authentication → URL Configuration:
 
-- **Site URL:** your website address, for example `https://karawene112.github.io/handoff/`
+- **Site URL:** the app's address, for example `https://karawene112.github.io/handoff/app/`
 - **Redirect URLs:** add the same address.
 
-Then send the address to Claude (or run this in the SQL editor, keeping the `/#` at the end). Email links use it, and the add-person function only accepts requests from this address, so adding people won't work until it's set:
+Then run this in the SQL editor, keeping the `/#` at the end. Email links use it, and the add-person function only accepts requests from this address, so adding people won't work until it's set:
 
 ```sql
-update public.app_settings set value = 'https://karawene112.github.io/handoff/#' where key = 'app_url';
+update public.app_settings set value = 'https://karawene112.github.io/handoff/app/#' where key = 'app_url';
 ```
 
 ### 3. Connect the email service (Resend)
@@ -86,14 +98,14 @@ update public.app_settings set value = 'https://karawene112.github.io/handoff/#'
 3. **To email your team, verify a domain** in Resend (Domains → Add domain, then add the DNS records it shows). Until you do, Resend only delivers to your own address. Once verified, set the sender:
 
 ```sql
-update public.app_settings set value = 'Handoff <tasks@yourdomain.com>' where key = 'email_from';
+update public.app_settings set value = 'Delegiq <tasks@yourdomain.com>' where key = 'email_from';
 ```
 
 4. Recommended: in Supabase → Authentication → Emails → SMTP Settings, turn on custom SMTP with host `smtp.resend.com`, port `465`, username `resend`, password = your Resend API key, and your verified sender. Supabase's built-in sender only allows a few sign-up and password emails per hour.
 
 ### 4. Switch on the AI
 
-Handoff's AI (writing tasks from one sentence, and the daily brief) uses Claude.
+Delegiq's AI (writing tasks from one sentence, and the daily brief) uses Claude.
 
 1. Create an API key at console.anthropic.com (Settings → API keys) and add some credit.
 2. In Supabase, open Edge Functions → Secrets and add `ANTHROPIC_API_KEY` with that key.
@@ -104,12 +116,82 @@ The AI only reads what the signed-in person is allowed to see, and each person c
 
 1. Open the website, create your account, and confirm your email.
 2. Name your team. You're now its manager.
-3. Under **People**, add each person. Handoff creates their login, emails them a temporary password, and shows it to you once so you can also send it by WhatsApp. The first time they sign in, they choose their own password. If someone forgets theirs, use **Send new password** on the People page.
+3. Under **People**, add each person. Delegiq creates their login, emails them a temporary password, and shows it to you once so you can also send it by WhatsApp. The first time they sign in, they choose their own password. If someone forgets theirs, use **Send new password** on the People page.
 4. Create tasks from **Overview** or **Tasks**.
 
 ### Optional: Google sign-in
 
 Turn on Google in Supabase → Authentication → Providers, then set `googleSignIn: true` in `docs/config.js`.
+
+## Selling Delegiq
+
+Any company can sign up from the sales page and gets a **free 14-day trial for up to 30 people**. After that they need a plan:
+
+| Plan | Price | People |
+| --- | --- | --- |
+| Starter | $19/month | 10 |
+| Team | $49/month | 30 |
+| Business | $99/month | 100 |
+
+When a trial ends or a payment stops, the company can still see and update its work but can't add tasks or people. The database enforces this and the people limit. Each person can create at most 3 companies.
+
+Payments go through **Lemon Squeezy**, which supports sellers in Qatar, pays out to a Qatari bank, and handles sales tax and invoices worldwide as the merchant of record.
+
+### Connect Lemon Squeezy (about 30 minutes)
+
+1. Create a store at lemonsqueezy.com and complete identity verification and payout details. Use the sales page, `terms.html`, `privacy.html` and `refunds.html` as your website and policies.
+2. Create one product, **Delegiq**, as a subscription with three variants: Starter $19/month, Team $49/month, Business $99/month. Don't add a trial in Lemon Squeezy; the app already gives one.
+3. For each variant, copy its **checkout link** and its **variant ID**, then run:
+
+```sql
+update public.plans set checkout_url = 'https://YOURSTORE.lemonsqueezy.com/buy/…', ls_variant_id = 123456 where id = 'starter';
+-- same for 'team' and 'business'
+```
+
+4. In Lemon Squeezy → Settings → Webhooks, add a webhook:
+   - URL: `https://ctnetlnnticvwkvxmmws.supabase.co/functions/v1/billing`
+   - Signing secret: a long random password you make up
+   - Events: every `subscription_…` event
+5. In Supabase → Edge Functions → Secrets, add `LEMONSQUEEZY_WEBHOOK_SECRET` with the same signing secret.
+6. In Lemon Squeezy's customer portal settings, allow customers to change plans, so upgrades and downgrades happen there.
+7. Test with Lemon Squeezy's test mode and test card before switching the store live.
+
+### Your own company, free
+
+```sql
+update public.subscriptions set status = 'comp', plan = 'comp', seat_limit = 1000
+where workspace_id = (select id from public.workspaces where name = 'YOUR COMPANY NAME');
+```
+
+### Contact email on the public pages
+
+Set `SUPPORT_EMAIL` at the top of `docs/site.js`. While it is empty, contact links are hidden.
+
+## Languages, templates, voice notes and WhatsApp
+
+- **Languages:** English, French and Arabic. Each person picks theirs on the sign-in page or in Settings → Language. Arabic turns the whole layout right to left, and the AI writes tasks and the daily brief in the chosen language. All wording lives in `docs/app/i18n-words.js` (English → French, Arabic); edit a phrase there to change it. Emails are still in English for now.
+- **Task templates:** on New task, fill in a task and press **Save as template**. Next time, pick it from **Start from a template**. Managers and team leaders (right 3) can use them; delete them in Settings → Task templates.
+- **Voice note → task:** on New task, press **Speak**, say who, what and by when, then **Write it for me**. The browser turns speech into text (Chrome, Edge and Safari; the button is hidden where it isn't supported). In Chrome the audio is processed by Google's speech service.
+- **WhatsApp reminders:** each person adds their number in Settings → WhatsApp reminders and ticks the box. New tasks, deadline reminders, late tasks, moved deadlines and blocked tasks are then also sent on WhatsApp. Included in the free trial, Team and Business.
+
+### Switch on WhatsApp (needs a Meta business account)
+
+1. In Meta Business Suite, create (or use) your business and verify it.
+2. At developers.facebook.com create an app of type **Business**, add the **WhatsApp** product, and add a phone number that isn't already used in the WhatsApp app.
+3. In WhatsApp Manager create a message template named **`delegiq_alert`**, category **Utility**, in English (`en`), French (`fr`) and Arabic (`ar`), with this body (translated for each language):
+
+   ```
+   {{1}}
+
+   {{2}}
+
+   Open Delegiq: {{3}}
+   ```
+   `{{1}}` is the headline (for example "New task: Prepare the Q4 report"), `{{2}}` one line of detail, `{{3}}` the link. Wait for Meta to approve it.
+4. Create a permanent access token for a system user with the `whatsapp_business_messaging` permission.
+5. In Supabase → Edge Functions → Secrets add `WHATSAPP_TOKEN` (the token) and `WHATSAPP_PHONE_ID` (the phone number ID shown in the WhatsApp settings of your app).
+
+Meta charges a small fee per message, depending on the country. Messages go out within 2 minutes. Problems are written to the `wa_error` column of the `notifications` table.
 
 ## Security
 

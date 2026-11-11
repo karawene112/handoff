@@ -2,38 +2,146 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <title>Handoff</title>
-  <meta name="description" content="Hand out work, track deadlines, and get told when something slips.">
-  <meta name="theme-color" content="#FFFFFF">
-  <!-- Security: the page may only load code from itself and the pinned Supabase library, and only talk to the Handoff database. -->
-  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data: blob: https://ctnetlnnticvwkvxmmws.supabase.co; connect-src 'self' https://ctnetlnnticvwkvxmmws.supabase.co wss://ctnetlnnticvwkvxmmws.supabase.co https://cdn.jsdelivr.net; object-src 'none'; base-uri 'self'; form-action 'self'">
-  <meta name="referrer" content="strict-origin-when-cross-origin">
-  <link rel="manifest" href="manifest.webmanifest">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Delegiq · Hand out work, know when it slips</title>
+  <meta name="description" content="Delegiq gives every task an owner and a deadline, emails the right people when work is late or blocked, and writes your daily brief with AI. Flat price per team. 14-day free trial.">
+  <meta name="theme-color" content="#FAF6F1">
+  <meta property="og:title" content="Delegiq · Hand out work, know when it slips">
+  <meta property="og:description" content="Delegate tasks, track deadlines, and get told when something slips. Flat price per team, 14-day free trial.">
+  <meta property="og:image" content="media/overview.jpg">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; media-src 'self'; script-src 'self'; object-src 'none'; base-uri 'self'">
   <link rel="icon" href="icon.svg" type="image/svg+xml">
-  <link rel="apple-touch-icon" href="icon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@500;600;700&family=Atkinson+Hyperlegible:wght@400;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Familjen+Grotesk:wght@600;700&family=Atkinson+Hyperlegible:wght@400;700&display=swap">
+  <link rel="stylesheet" href="site.css">
+  <script src="site.js"></script>
 </head>
 <body>
-  <div class="shell">
-    <aside class="sidebar" id="sidebar" hidden>
-      <a class="brand" href="#/"><img src="icon.svg" alt="" width="30" height="30"><span>Handoff</span></a>
-      <div class="ws" id="wsName"></div>
-      <nav class="side-nav" id="nav" aria-label="Main"></nav>
-      <div class="side-foot" id="who"></div>
-    </aside>
-    <div class="content">
-      <header class="mobile-top" id="mtop" hidden></header>
-      <main id="view"><p class="muted pad">Loading…</p></main>
-    </div>
-  </div>
-  <nav class="tabbar" id="tabbar" aria-label="Main" hidden></nav>
-  <div id="toast" role="status" hidden></div>
-  <noscript><p class="pad">Handoff needs JavaScript turned on.</p></noscript>
-  <script src="config.js"></script>
-  <script type="module" src="app.js"></script>
+  <header class="nav"><div class="wrap">
+    <a class="brand" href="./"><img src="icon.svg" alt="">Delegiq</a>
+    <a class="link hide-s" href="#how">How it works</a>
+    <a class="link hide-s" href="#pricing">Pricing</a>
+    <a class="link" href="app/">Sign in</a>
+    <a class="btn primary small" href="app/#/signup">Start free trial</a>
+  </div></header>
+
+  <main>
+    <div class="hero"><div class="wrap">
+      <p class="eyebrow">Task delegation for teams</p>
+      <h1>Hand out work.<br>Know when it slips.</h1>
+      <p class="lead">Delegiq gives every task an owner and a deadline, emails the right people when work is late or blocked, and writes your morning brief with AI. Everyone sees exactly what they should, nothing more.</p>
+      <div class="ctas"><a class="btn primary" href="app/#/signup">Start your free 14-day trial</a><a class="btn" href="#demo">Watch the 90-second tour</a></div>
+      <p class="note">No card needed. Set up your team in about 5 minutes.</p>
+      <div class="shot"><img src="media/overview.jpg" alt="The Delegiq overview: an AI brief of the day, late and blocked tasks, and each person's workload" width="1920" height="1200"></div>
+    </div></div>
+
+    <section id="how"><div class="wrap center">
+      <p class="eyebrow">How it works</p>
+      <h2>From one sentence to done, without chasing anyone</h2>
+      <p class="sub">You set the rules once. Delegiq does the reminding, the follow-ups and the reporting.</p>
+      <div class="steps" style="text-align:left">
+        <div class="step"><h3>Add your team</h3><p class="muted" style="margin:0">Give each person a level and a team. Delegiq creates their login and a temporary password. Team leaders manage only the people below them.</p></div>
+        <div class="step"><h3>Describe the task</h3><p class="muted" style="margin:0">Type one sentence. AI writes the title, steps, deadline and priority, and suggests the person with the right skills and the most room.</p></div>
+        <div class="step"><h3>Get told when it slips</h3><p class="muted" style="margin:0">Reminders go out before the deadline. Late or blocked work emails the person and their boss straight away. Managers get a summary every morning.</p></div>
+      </div>
+    </div></section>
+
+    <section class="alt"><div class="wrap">
+      <div class="split">
+        <div class="txt">
+          <p class="eyebrow">AI task writer</p>
+          <h2>Write tasks in seconds</h2>
+          <p class="muted">“Adam should prepare the Q4 sales report for the board by tomorrow, it’s urgent.” That’s all you type.</p>
+          <ul><li>Clear title, details and step-by-step checklist</li><li>Deadline and priority worked out from your words</li><li>Picks who should do it, based on skills and workload, and says why</li></ul>
+        </div>
+        <div class="img"><img src="media/ai-task.jpg" alt="A task written by AI from one sentence, assigned to Adam with steps and a deadline" loading="lazy"></div>
+      </div>
+    </div></section>
+
+    <section><div class="wrap">
+      <div class="split rev">
+        <div class="txt">
+          <p class="eyebrow">Levels and rights</p>
+          <h2>Everyone sees the right amount</h2>
+          <p class="muted">Five levels and ten numbered rights decide who can see, assign, edit or delete what. Rename them to match your company.</p>
+          <ul><li>Team members see only their own tasks</li><li>Team leaders manage the people below them in their team</li><li>The manager sees everything, in every team</li></ul>
+        </div>
+        <div class="img"><img src="media/board.jpg" alt="The task board with To do, In progress, Blocked and Done columns" loading="lazy"></div>
+      </div>
+    </div></section>
+
+    <section class="alt" id="demo"><div class="wrap center">
+      <p class="eyebrow">See it in action</p>
+      <h2>A 90-second tour</h2>
+      <p class="sub">The manager’s day, adding a person, writing a task with AI, and what a team member sees.</p>
+      <div class="video"><video src="media/delegiq-demo.mp4" poster="media/demo-poster.jpg" controls preload="none" playsinline width="1280" height="720"></video></div>
+    </div></section>
+
+    <section><div class="wrap center">
+      <p class="eyebrow">Everything included</p>
+      <h2>Built for teams that can’t afford to drop things</h2>
+      <p class="sub">Every plan includes AI, approvals, templates and three languages. WhatsApp reminders come with Team and Business.</p>
+      <div class="feats" style="text-align:left">
+        <div class="feat"><h3>Emails that chase for you</h3><p>Assigned, due in 2 days, due today, late, still late, blocked, done. Each goes to the person who needs it.</p></div>
+        <div class="feat"><h3>Daily AI brief</h3><p>A few lines each morning: who is late, what is blocked, who has room for more.</p></div>
+        <div class="feat"><h3>List and board</h3><p>See work as a list or drag cards across To do, In progress, Blocked and Done.</p></div>
+        <div class="feat"><h3>Approvals</h3><p>Mark a task “needs my approval”. The person submits it, you approve it or send it back with a comment.</p></div>
+        <div class="feat"><h3>Repeating tasks</h3><p>Daily checks, weekly reports, monthly closes. When one is done, the next appears with a fresh deadline.</p></div>
+        <div class="feat"><h3>WhatsApp reminders</h3><p>New tasks, deadlines and late work can also arrive on WhatsApp, where people actually look.</p></div>
+        <div class="feat"><h3>Speak a task</h3><p>Press the mic, say who, what and by when. AI turns your voice note into a ready task.</p></div>
+        <div class="feat"><h3>Task templates</h3><p>Save the tasks you give again and again, like onboarding or the monthly close, and reuse them in one click.</p></div>
+        <div class="feat"><h3>English, Français, العربية</h3><p>Each person picks their language. Arabic reads right to left, and the AI answers in your language.</p></div>
+        <div class="feat"><h3>Files and comments</h3><p>Steps to tick off, comments on every task, and safe file attachments up to 20 MB.</p></div>
+        <div class="feat"><h3>Reports</h3><p>Done, open and late work per person. Download for Excel or Power BI, or save as PDF.</p></div>
+        <div class="feat"><h3>Serious security</h3><p>Two-step sign-in for managers, auto sign-out, sign-in history, and each company’s data kept apart in the database.</p></div>
+      </div>
+      <div class="split" style="margin-top:72px;text-align:left">
+        <div class="txt"><p class="eyebrow">On the go</p><h2>Works on any phone</h2><p class="muted">Add Delegiq to your home screen and it opens like an app. Team members can update a task in two taps between meetings, flights or site visits.</p></div>
+        <div style="display:flex;justify-content:center"><img src="media/phone.jpg" alt="A team member's tasks on a phone" loading="lazy" style="width:280px;height:auto;border-radius:24px;border:1px solid var(--line);box-shadow:0 20px 40px -24px rgba(43,31,23,.35)"></div>
+      </div>
+    </div></section>
+
+    <section class="alt" id="pricing"><div class="wrap center">
+      <p class="eyebrow">Pricing</p>
+      <h2>One flat price for the whole team</h2>
+      <p class="sub">Not per person. Start with a free 14-day trial for up to 30 people, then choose a plan.</p>
+      <div class="prices" style="text-align:left">
+        <div class="price"><h3>Starter</h3><div class="amt">$19<span> /month</span></div><p class="who">Up to 10 people</p>
+          <ul><li>Every feature, including AI</li><li>Unlimited tasks</li><li>Email reminders and summaries</li></ul>
+          <a class="btn" href="app/#/signup">Start free trial</a></div>
+        <div class="price pop"><span class="tag">Most popular</span><h3>Team</h3><div class="amt">$49<span> /month</span></div><p class="who">Up to 30 people</p>
+          <ul><li>Every feature, including AI</li><li>Room for several teams and leaders</li><li>WhatsApp reminders</li></ul>
+          <a class="btn primary" href="app/#/signup">Start free trial</a></div>
+        <div class="price"><h3>Business</h3><div class="amt">$99<span> /month</span></div><p class="who">Up to 100 people</p>
+          <ul><li>Every feature, including AI</li><li>Room for a whole company</li><li>WhatsApp reminders and priority support</li></ul>
+          <a class="btn" href="app/#/signup">Start free trial</a></div>
+      </div>
+      <p class="price-note">Prices in US dollars. Sales tax or VAT is added at checkout where required. Cancel anytime.</p>
+    </div></section>
+
+    <section id="faq"><div class="wrap">
+      <div class="center"><p class="eyebrow">Questions</p><h2>Good to know</h2></div>
+      <div class="faq">
+        <details><summary>Do I need a card for the free trial?</summary><p>No. You get 14 days with up to 30 people. When the trial ends you can still see and update your work. You just can’t add new tasks or people until you choose a plan.</p></details>
+        <details><summary>Can I change plans or cancel?</summary><p>Yes, anytime, from Settings → Plan &amp; billing → Manage subscription. If you cancel, your plan keeps working until the end of the month you paid for.</p></details>
+        <details><summary>Who can see what?</summary><p>Team members see only their own tasks. Team leaders see the people below them in their own team. The manager sees everything. These rules are enforced by the database itself, not just hidden on the screen.</p></details>
+        <details><summary>Where is my data kept?</summary><p>In a secured database in Frankfurt, in the EU. Each company’s data is kept apart, files are only reachable through links that expire after an hour, and we never sell your data. See the <a href="privacy.html">privacy policy</a>.</p></details>
+        <details><summary>Does the AI see my company’s data?</summary><p>Only what the person using it is already allowed to see, and only when they press an AI button. It writes a task draft or a daily brief and nothing is used to train AI models.</p></details>
+        <details><summary>How do I pay?</summary><p>By card, Apple Pay, Google Pay or PayPal. Payments are handled by our reseller, Lemon Squeezy, who also handles sales tax and invoices.</p></details>
+        <details><summary>Do you offer refunds?</summary><p>If something isn’t right in your first 14 days after paying, ask and we’ll refund that payment. See the <a href="refunds.html">refund policy</a>.</p></details>
+      </div>
+    </div></section>
+
+    <section style="padding-top:0"><div class="wrap">
+      <div class="cta-band"><h2>Give your team a clear next step</h2><p>Free for 14 days. No card needed.</p><a class="btn" href="app/#/signup">Start your free trial</a></div>
+    </div></section>
+  </main>
+
+  <footer><div class="wrap">
+    <span>© <span id="yr">2026</span> Delegiq</span>
+    <a href="terms.html">Terms</a><a href="privacy.html">Privacy</a><a href="refunds.html">Refunds</a>
+    <a data-email hidden>Contact</a>
+  </div></footer>
 </body>
 </html>

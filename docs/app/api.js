@@ -50,7 +50,7 @@ export const auth = {
   async enroll() {
     const f = await this.factors();
     for (const old of (f.all || []).filter((x) => x.status !== "verified")) await sb.auth.mfa.unenroll({ factorId: old.id });
-    return check(await sb.auth.mfa.enroll({ factorType: "totp", friendlyName: "Handoff " + new Date().toISOString().slice(0, 10) }));
+    return check(await sb.auth.mfa.enroll({ factorType: "totp", friendlyName: "Delegiq " + new Date().toISOString().slice(0, 10) }));
   },
   async verify(factorId, code) {
     check(await sb.auth.mfa.challengeAndVerify({ factorId, code }));
@@ -64,7 +64,7 @@ export const auth = {
 export const db = {
   async memberships(uid) {
     return check(await sb.from("members")
-      .select("id,role,level,rights,team,name,email,notify_mode,workspace_id,workspaces(id,name,timezone,escalate_after_days)")
+      .select("id,role,level,rights,team,name,email,notify_mode,lang,phone,whatsapp,workspace_id,workspaces(id,name,timezone,escalate_after_days)")
       .eq("user_id", uid).eq("status", "active"));
   },
   async createWorkspace(name, myName) { return check(await sb.rpc("create_workspace", { p_name: name, p_my_name: myName })); },
@@ -89,6 +89,10 @@ export const db = {
     }));
   },
   async setNotifyMode(ws, mode) { return check(await sb.rpc("set_my_notify_mode", { p_ws: ws, p_mode: mode })); },
+  async setPrefs(ws, { lang = null, phone = null, whatsapp = false }) { return check(await sb.rpc("set_my_prefs", { p_ws: ws, p_lang: lang, p_phone: phone, p_whatsapp: whatsapp })); },
+  async templates(ws) { return check(await sb.from("task_templates").select("*").eq("workspace_id", ws).order("name")); },
+  async saveTemplate(row) { return check(await sb.from("task_templates").insert(row).select().single()); },
+  async deleteTemplate(id) { return check(await sb.from("task_templates").delete().eq("id", id)); },
 
   async tasks(ws) { return check(await sb.from("tasks").select("*").eq("workspace_id", ws).order("deadline")); },
   async task(id) { return check(await sb.from("tasks").select("*").eq("id", id).maybeSingle()); },
@@ -113,10 +117,11 @@ export const db = {
   },
 
   // AI (Claude). The server reads only what this person is allowed to see.
-  async aiDraft(ws, text) { return callFn("ai", { action: "draft", workspace_id: ws, text }); },
-  async aiBrief(ws) { return callFn("ai", { action: "brief", workspace_id: ws }); },
+  async aiDraft(ws, text, lang = "en") { return callFn("ai", { action: "draft", workspace_id: ws, text, lang }); },
+  async aiBrief(ws, lang = "en") { return callFn("ai", { action: "brief", workspace_id: ws, lang }); },
 
   async signupOpen() { const { data } = await sb.rpc("signup_open"); return !!data; },
+  async billing(ws) { return check(await sb.rpc("billing_info", { p_ws: ws })); },
   async recordSignIn(device) { await sb.rpc("record_sign_in", { p_device: device }); },
   async mySignIns() { return check(await sb.from("sign_ins").select("*").order("at", { ascending: false }).limit(8)); },
   async peopleSecurity(ws) { return check(await sb.rpc("people_security", { p_ws: ws })); },

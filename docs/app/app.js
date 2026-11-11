@@ -1,9 +1,14 @@
-// Handoff website. Plain JavaScript, no build step.
+// Delegiq website. Plain JavaScript, no build step.
 // Security is enforced by the database rules; this file only decides what to show.
 import { auth, db } from "./api.js";
+import { T, LANG, LANGS, LOCALE, setLang, applyLang } from "./i18n.js";
+applyLang();
+const L = (en, fr, ar) => ({ fr, ar }[LANG] ?? en);
 
 const cfg = window.HANDOFF_CONFIG || {};
-const STATUS = { todo: "To do", progress: "In progress", blocked: "Blocked", done: "Done" };
+const STATUS = { todo: "To do", progress: "In progress", blocked: "Blocked", review: "Waiting for approval", done: "Done" };
+const SHORT = { ...STATUS, review: "Approval" };
+const REPEAT = { none: "Doesn’t repeat", daily: "Every day", weekdays: "Every weekday", weekly: "Every week", monthly: "Every month" };
 const STATUS_KEYS = Object.keys(STATUS);
 const PRI = ["Low", "Medium", "High", "Urgent"];
 // Numbered rights. "Below me" = same team, lower level number.
@@ -27,21 +32,21 @@ const esc = (v) => String(v ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "
 const view = () => $("#view");
 
 /* ---------- small helpers ---------- */
-function toast(msg) { const t = $("#toast"); t.textContent = msg; t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => (t.hidden = true), 3000); }
+function toast(msg) { const t = $("#toast"); t.textContent = T(msg); t.hidden = false; clearTimeout(toast.h); toast.h = setTimeout(() => (t.hidden = true), 3000); }
 function today() { return new Intl.DateTimeFormat("en-CA", { timeZone: S.ws?.timezone || undefined, year: "numeric", month: "2-digit", day: "2-digit" }).format(new Date()); }
 const dd = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 864e5);
 const addDays = (d, n) => new Date(Date.parse(d) + n * 864e5).toISOString().slice(0, 10);
-const fmtD = (d) => (d ? new Date(String(d).slice(0, 10) + "T00:00:00Z").toLocaleDateString(undefined, { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }) : "—");
-const fmtT = (t) => { const d = new Date(t); return d.toLocaleDateString(undefined, { day: "numeric", month: "short" }) + " " + d.toLocaleTimeString(undefined, { hour: "2-digit", minute: "2-digit" }); };
+const fmtD = (d) => (d ? new Date(String(d).slice(0, 10) + "T00:00:00Z").toLocaleDateString(LOCALE(), { weekday: "short", day: "numeric", month: "short", timeZone: "UTC" }) : "—");
+const fmtT = (t) => { const d = new Date(t); return d.toLocaleDateString(LOCALE(), { day: "numeric", month: "short" }) + " " + d.toLocaleTimeString(LOCALE(), { hour: "2-digit", minute: "2-digit" }); };
 const isOpen = (t) => t.status !== "done";
 const isLate = (t) => isOpen(t) && dd(today(), t.deadline) < 0;
 function dueText(t) {
   if (!isOpen(t)) return fmtD(t.deadline);
   const d = dd(today(), t.deadline);
-  if (d < 0) return `${-d} day${d === -1 ? "" : "s"} late`;
-  if (d === 0) return "Due today";
-  if (d === 1) return "Tomorrow";
-  if (d < 7) return `In ${d} days`;
+  if (d < 0) return L(`${-d} day${d === -1 ? "" : "s"} late`, `${-d} j de retard`, -d === 1 ? "متأخرة يومًا" : -d === 2 ? "متأخرة يومين" : `متأخرة ${-d} أيام`);
+  if (d === 0) return L("Due today", "Pour aujourd’hui", "مستحقة اليوم");
+  if (d === 1) return L("Tomorrow", "Demain", "غدًا");
+  if (d < 7) return L(`In ${d} days`, `Dans ${d} jours`, d === 2 ? "بعد يومين" : `بعد ${d} أيام`);
   return fmtD(t.deadline);
 }
 const dueCls = (t) => { if (!isOpen(t)) return ""; const d = dd(today(), t.deadline); return d < 0 ? "late" : d <= 1 ? "soon" : ""; };
@@ -170,6 +175,9 @@ const P = {
   settings: '<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.6 1.6 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.6 1.6 0 0 0-1.8-.3 1.6 1.6 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.6 1.6 0 0 0-1-1.5 1.6 1.6 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.6 1.6 0 0 0 .3-1.8 1.6 1.6 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.6 1.6 0 0 0 1.5-1 1.6 1.6 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.6 1.6 0 0 0 1.8.3H9a1.6 1.6 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.6 1.6 0 0 0 1 1.5 1.6 1.6 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.6 1.6 0 0 0-.3 1.8V9a1.6 1.6 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.6 1.6 0 0 0-1.5 1z"/>',
   plus: '<path d="M12 5v14M5 12h14"/>',
   more: '<circle cx="5" cy="12" r="1.3"/><circle cx="12" cy="12" r="1.3"/><circle cx="19" cy="12" r="1.3"/>',
+  mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
+  tpl: '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 8h8M8 12h8M8 16h5"/>',
+  wa: '<path d="M4 20l1.3-3.9A8 8 0 1 1 8 19z"/><path d="M9 9.5c0 3 2.5 5.5 5.5 5.5l1-1.5-2-1-1 .8a4 4 0 0 1-1.8-1.8l.8-1-1-2z"/>',
   spark: '<path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"/><path d="M19 15l.8 2.2L22 18l-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"/>',
   list: '<path d="M8 6h13M8 12h13M8 18h13M3.5 6h.01M3.5 12h.01M3.5 18h.01"/>',
   board: '<rect x="3" y="4" width="5" height="16" rx="1.5"/><rect x="10" y="4" width="5" height="10" rx="1.5"/><rect x="17" y="4" width="4" height="13" rx="1.5"/>',
@@ -200,7 +208,7 @@ function renderChrome(active) {
   $("#who").innerHTML = `<a class="me-card" href="#/settings">${av(S.me.name)}<span class="me-txt"><b>${esc(S.me.name)}</b><span>${esc(levelTag(S.me))}</span></span></a>
     <button class="icon-btn" id="sideOut" type="button" title="Sign out" aria-label="Sign out">${ic("out")}</button>`;
   $("#sideOut").onclick = () => auth.signOut();
-  mtop.innerHTML = `<a class="brand" href="#/"><img src="icon.svg" alt="" width="26" height="26"><span>Handoff</span></a><span class="ws">${esc(S.ws.name)}</span><a href="#/settings" aria-label="Settings">${av(S.me.name)}</a>`;
+  mtop.innerHTML = `<a class="brand" href="#/"><img src="icon.svg" alt="" width="26" height="26"><span>Delegiq</span></a><span class="ws">${esc(S.ws.name)}</span><a href="#/settings" aria-label="Settings">${av(S.me.name)}</a>`;
   // phone tab bar: the four most-used places, plus a big + in the middle when you can create tasks
   const main = items.filter(([k]) => ["overview", "tasks", "my", "people"].includes(k)).slice(0, 4);
   const rest = items.filter(([k]) => !main.some(([m]) => m === k));
@@ -258,12 +266,13 @@ async function render() {
 function authShell(inner) {
   view().innerHTML = `<div class="auth-wrap">
     <section class="auth-art" aria-hidden="true">
-      <div class="brand light"><img src="icon.svg" alt="" width="34" height="34"><span>Handoff</span></div>
+      <div class="brand light"><img src="icon.svg" alt="" width="34" height="34"><span>Delegiq</span></div>
       <div class="art-copy"><h2>Hand out work.<br>Know when it slips.</h2>
         <ul><li>${ic("spark")}Describe a task in one sentence, AI picks the right person</li><li>${ic("clock")}Reminders before every deadline, alerts when it’s late</li><li>${ic("people")}Each person sees exactly what their level allows</li></ul></div>
       <div class="art-cards"><div class="mini"><span class="dot s-progress"></span>Q4 sales report<span class="due">Tomorrow</span></div><div class="mini"><span class="dot s-blocked"></span>Venue booking<span class="due late">1 day late</span></div><div class="mini"><span class="dot s-done"></span>Supplier list<span class="due">Done</span></div></div>
     </section>
-    <section class="auth"><div class="brand mobile-only"><img src="icon.svg" alt="" width="30" height="30"><span>Handoff</span></div>${inner}</section></div>`;
+    <section class="auth"><div class="lang-pick" role="group" aria-label="Language">${Object.entries(LANGS).map(([k, v]) => `<button type="button" data-lang="${k}" lang="${k}" aria-pressed="${LANG === k}">${v}</button>`).join("")}</div><div class="brand mobile-only"><img src="icon.svg" alt="" width="30" height="30"><span>Delegiq</span></div>${inner}</section></div>`;
+  view().querySelectorAll(".lang-pick [data-lang]").forEach((x) => (x.onclick = () => { setLang(x.dataset.lang); render(); }));
 }
 function googleBtn() { return cfg.googleSignIn ? `<div class="or">or</div><button class="btn" type="button" id="google">Continue with Google</button>` : ""; }
 function wireGoogle() { const g = $("#google"); if (g) g.onclick = async () => { try { await auth.google(); } catch (e) { toast(e.message); } }; }
@@ -277,7 +286,7 @@ function vLogin() {
       <button class="btn primary" type="submit">Sign in</button>
     </form>${googleBtn()}
     <p class="small"><a href="#/forgot">Forgot your password?</a></p>
-    <p class="small" id="newHere" hidden>Setting up Handoff for your company? <a href="#/signup">Create an account</a></p>
+    <p class="small" id="newHere" hidden>New to Delegiq? <a href="#/signup">Start your free 14-day trial</a></p>
     <p class="small muted">Joining a team? Your manager sends you a login.</p>`);
   wireGoogle();
   db.signupOpen().then((o) => { const n = $("#newHere"); if (n) n.hidden = !o; }).catch(() => {});
@@ -294,7 +303,7 @@ async function vSignup(q) {
   const invited = q.get("email") || "";
   let open = false; try { open = await db.signupOpen(); } catch {}
   if (!open) { authShell(`<h1>Accounts are created by your manager</h1><p>Ask your manager to add you on the People page. You’ll get an email with a temporary password.</p><a class="btn" href="#/login">Back to sign in</a>`); return; }
-  authShell(`<p>${invited ? "Your manager added you to a team. Create your account with this email to see your tasks." : "Create an account to set up your team. Joining a team? Your manager sends you a login instead."}</p>
+  authShell(`<p>${invited ? "Your manager added you to a team. Create your account with this email to see your tasks." : "Start your free 14-day trial. No card needed. Joining a team? Your manager sends you a login instead."}</p>
     <form id="f" novalidate>
       <label class="lb">Your name<input class="field" name="name" autocomplete="name" required></label>
       <label class="lb">Email<input class="field" name="email" type="email" autocomplete="email" value="${esc(invited)}" required></label>
@@ -363,10 +372,10 @@ async function vMfaSetup(required) {
 }
 function vMfaCode() {
   const factor = (S.factors.totp || [])[0];
-  authShell(`<h1>Enter your code</h1><p>Open your authenticator app and type the 6-digit code for Handoff.</p>
+  authShell(`<h1>Enter your code</h1><p>Open your authenticator app and type the 6-digit code for Delegiq.</p>
     <form id="f" novalidate><label class="lb">6-digit code<input class="field code" name="code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]*" autofocus></label>
     <span class="err" id="err"></span><button class="btn primary" type="submit">Continue</button></form>
-    <p class="small muted">Lost your phone? Ask whoever runs Handoff for your company to reset your two-step sign-in.</p>
+    <p class="small muted">Lost your phone? Ask whoever runs Delegiq for your company to reset your two-step sign-in.</p>
     <p class="small"><a href="#" id="out">Sign out</a></p>`);
   $("#out").onclick = (e) => { e.preventDefault(); auth.signOut(); };
   wireCode(factor.id);
@@ -386,7 +395,7 @@ function wireCode(factorId, okMsg) {
 function vSetup() {
   const nm = S.session.user.user_metadata?.name || "";
   view().innerHTML = `<div class="auth">
-    <div class="brand">Handoff</div>
+    <div class="brand">Delegiq</div>
     <h1>Set up your team</h1>
     <p>You’ll be the manager: you add people, hand out tasks and see everyone’s progress.</p>
     <form id="f" novalidate>
@@ -419,7 +428,7 @@ function greeting() {
   return h < 12 ? "Good morning" : h < 18 ? "Good afternoon" : "Good evening";
 }
 const firstName = (n) => String(n || "").trim().split(/\s+/)[0];
-const longDate = () => new Date().toLocaleDateString(undefined, { weekday: "long", day: "numeric", month: "long", timeZone: S.ws?.timezone || undefined });
+const longDate = () => new Date().toLocaleDateString(LOCALE(), { weekday: "long", day: "numeric", month: "long", timeZone: S.ws?.timezone || undefined });
 function briefKey() { return `handoff.brief.${S.ws.id}.${S.me.id}.${today()}`; }
 function briefHtml(text) {
   return String(text || "").split(/\n+/).map((l) => l.replace(/^[-•]\s*/, "").trim()).filter(Boolean).map((l) => `<li>${esc(l)}</li>`).join("");
@@ -435,13 +444,16 @@ async function vOverview() {
   const done7 = tasks.filter((t) => t.completed_at && dd(t.completed_at.slice(0, 10), t0) <= 7);
   const doneAll = tasks.filter((t) => t.completed_at);
   const onTime = doneAll.length ? Math.round((doneAll.filter((t) => t.completed_at.slice(0, 10) <= t.deadline).length / doneAll.length) * 100) : null;
-  const attention = [...late, ...blocked.filter((t) => !isLate(t)), ...dueToday.filter((t) => t.status !== "blocked")];
+  const toApprove = open.filter((t) => t.status === "review" && t.assignee_id !== S.me.id && bossOf(t));
+  const attention = [...toApprove, ...late.filter((t) => t.status !== "review"), ...blocked.filter((t) => !isLate(t)), ...dueToday.filter((t) => t.status !== "blocked" && t.status !== "review")];
   const team = visibleTeam();
 
   let cached = null; try { cached = localStorage.getItem(briefKey()); } catch {}
   const kpi = (icon, v, l, cls = "") => `<div class="panel kpi ${cls}"><span class="kpi-ic">${ic(icon)}</span><div><div class="v">${v}</div><div class="l">${l}</div></div></div>`;
-  view().innerHTML = `<div class="hello"><div><p class="eyebrow">${esc(longDate())}</p><h1>${greeting()}, ${esc(firstName(S.me.name))}</h1>
-      <p class="muted">${late.length ? `${late.length} late, ` : ""}${blocked.length ? `${blocked.length} blocked, ` : ""}${dueToday.length} due today across ${isManager() ? "the company" : "your team"}.</p></div>${newBtn()}</div>
+  view().innerHTML = `<div class="hello"><div><p class="eyebrow">${esc(longDate())}</p><h1>${T(greeting())}${L(", ", ", ", "، ")}<span data-notr>${esc(firstName(S.me.name))}</span></h1>
+      <p class="muted">${L(`${late.length ? `${late.length} late, ` : ""}${blocked.length ? `${blocked.length} blocked, ` : ""}${dueToday.length} due today across ${isManager() ? "the company" : "your team"}.`,
+        `${late.length ? `${late.length} en retard, ` : ""}${blocked.length ? `${blocked.length} bloquée(s), ` : ""}${dueToday.length} pour aujourd’hui dans ${isManager() ? "l’entreprise" : "votre équipe"}.`,
+        `${late.length ? `${late.length} متأخرة، ` : ""}${blocked.length ? `${blocked.length} متوقفة، ` : ""}${dueToday.length} مستحقة اليوم في ${isManager() ? "الشركة" : "فريقك"}.`)}</p></div>${newBtn()}</div>
   <div class="panel brief-card">
     <div class="brief-h"><span class="ai-badge">${ic("spark")}AI brief</span><span class="muted small">${cached ? "Today" : "What needs your attention, in a few lines"}</span>
       <button class="btn small ${cached ? "" : "primary"}" id="briefBtn" type="button">${ic("spark")}${cached ? "Rewrite" : "Write today’s brief"}</button></div>
@@ -459,7 +471,7 @@ async function vOverview() {
     <div class="grid" style="align-content:start">
       <div class="panel"><h2>Needs attention</h2><div class="att">${attention.map((t) => `<a href="#/tasks/${t.id}">
         <span class="dot s-${t.status}"></span><span class="tt">${esc(t.title)}</span><span class="muted small">${esc(nameOf(t.assignee_id) || "Unassigned")}</span>
-        <span class="meta due ${dueCls(t)}">${t.status === "blocked" && !isLate(t) ? "Blocked" : esc(dueText(t))}</span></a>`).join("") || `<p class="muted" style="margin:0">Nothing late, blocked or due today.</p>`}</div></div>
+        <span class="meta due ${dueCls(t)}">${t.status === "review" ? "Approve" : t.status === "blocked" && !isLate(t) ? "Blocked" : esc(dueText(t))}</span></a>`).join("") || `<p class="muted" style="margin:0">Nothing late, blocked or due today.</p>`}</div></div>
       <div class="panel"><h2>Latest updates</h2><div class="feed" id="feed"><p class="muted" style="margin:0">Loading…</p></div>
         <p class="small" style="margin:10px 0 0"><a href="#/activity">All activity</a></p></div>
     </div>
@@ -470,10 +482,11 @@ async function vOverview() {
       <p class="small muted" style="margin:10px 0 0">Open tasks against each person’s limit. A red number is late tasks.</p>
     </div>
   </div>`;
+  trialBanner();
   $("#briefBtn").onclick = async () => {
     const b = $("#briefBtn"), list = $("#brief"); $("#briefErr").textContent = "";
     busy(b, true, "Thinking…"); list.innerHTML = `<li class="shimmer"></li><li class="shimmer"></li><li class="shimmer short"></li>`;
-    try { const r = await db.aiBrief(S.ws.id); try { localStorage.setItem(briefKey(), r.text); } catch {} list.innerHTML = briefHtml(r.text); b.textContent = "Rewrite"; b.disabled = false; b.classList.remove("primary"); b.insertAdjacentHTML("afterbegin", ic("spark")); }
+    try { const r = await db.aiBrief(S.ws.id, LANG); try { localStorage.setItem(briefKey(), r.text); } catch {} list.innerHTML = briefHtml(r.text); b.textContent = "Rewrite"; b.disabled = false; b.classList.remove("primary"); b.insertAdjacentHTML("afterbegin", ic("spark")); }
     catch (e) { list.innerHTML = cached ? briefHtml(cached) : ""; $("#briefErr").textContent = e.message; busy(b, false); }
   };
   const acts = await db.activity(S.ws.id, { limit: 12 });
@@ -482,32 +495,38 @@ async function vOverview() {
 
 /* ---------- activity sentences ---------- */
 function sentence(a) {
-  const who = a.actor_id ? (nameOf(a.actor_id) || "Someone") : "Handoff";
+  const who = a.actor_id ? (nameOf(a.actor_id) || L("Someone", "Quelqu’un", "شخص ما")) : "Delegiq";
   const d = a.detail || {};
-  const t = a.task_id ? `<a href="#/tasks/${a.task_id}">${esc(a.task_title || "a task")}</a>` : `“${esc(a.task_title || "a task")}”`;
-  const nm = (v) => (v && v !== "Someone" ? esc(v) : "nobody");
+  const t = a.task_id ? `<a href="#/tasks/${a.task_id}" data-notr>${esc(a.task_title || L("a task", "une tâche", "مهمة"))}</a>` : `“<span data-notr>${esc(a.task_title || L("a task", "une tâche", "مهمة"))}</span>”`;
+  const nm = (v) => (v && v !== "Someone" ? `<span data-notr>${esc(v)}</span>` : L("nobody", "personne", "لا أحد"));
+  const W = `<span data-notr>${esc(who)}</span>`, M = `<span data-notr>${esc(d.member || "")}</span>`;
+  const st = (x) => esc(T(x || ""));
   switch (a.action) {
-    case "created": return `${esc(who)} created ${t} for ${nm(d.assignee)}, due ${fmtD(d.deadline)}`;
-    case "status": return `${esc(who)} moved ${t} from ${esc(d.from)} to <b>${esc(d.to)}</b>`;
-    case "reassigned": return `${esc(who)} handed ${t} from ${nm(d.from)} to ${nm(d.to)}`;
-    case "deadline": return `${esc(who)} moved the deadline of ${t} from ${fmtD(d.from)} to ${fmtD(d.to)}`;
-    case "priority": return `${esc(who)} set ${t} to ${esc(d.to)} priority`;
-    case "edited": return `${esc(who)} edited ${t}`;
-    case "steps": return `${esc(who)} updated the steps on ${t} (${d.done}/${d.total} done)`;
-    case "commented": return `${esc(who)} commented on ${t}: “${esc(d.text)}”`;
-    case "attached": return `${esc(who)} attached ${esc(d.file)} to ${t}`;
-    case "deleted": return `${esc(who)} deleted “${esc(a.task_title)}”`;
-    case "invited": return `${esc(who)} added ${esc(d.member)}${d.level ? ` at level ${esc(d.level)} (${esc(levelName(d.level))})` : ""}`;
-    case "level": return `${esc(who)} moved ${esc(d.member)} from level ${esc(d.from)} to level ${esc(d.to)} (${esc(levelName(d.to))})`;
-    case "rights": return `${esc(who)} set ${esc(d.member)}'s rights to ${esc(rightsList(d.rights))}`;
-    case "team": return `${esc(who)} moved ${esc(d.member)} from ${esc(d.from || "no team")} to ${esc(d.to || "no team")}`;
-    case "password_sent": return `${esc(who)} sent ${esc(d.member)} a new password`;
-    case "role": return `${esc(who)} changed ${esc(d.member)}'s access`;
-    case "member_active": return `${esc(d.member)} joined the team`;
-    case "member_removed": return `${esc(who)} removed ${esc(d.member)}`;
-    case "member_invited": return `${esc(who)} re-invited ${esc(d.member)}`;
-    case "workspace_created": return `Team “${esc(d.name)}” created`;
-    default: return `${esc(who)}: ${esc(a.action)}`;
+    case "created": return L(`${W} created ${t} for ${nm(d.assignee)}, due ${fmtD(d.deadline)}`, `${W} a créé ${t} pour ${nm(d.assignee)}, échéance ${fmtD(d.deadline)}`, `${W} أنشأ ${t} لـ ${nm(d.assignee)}، الموعد ${fmtD(d.deadline)}`);
+    case "status": return L(`${W} moved ${t} from ${st(d.from)} to <b>${st(d.to)}</b>`, `${W} a passé ${t} de ${st(d.from)} à <b>${st(d.to)}</b>`, `${W} نقل ${t} من ${st(d.from)} إلى <b>${st(d.to)}</b>`);
+    case "reassigned": return L(`${W} handed ${t} from ${nm(d.from)} to ${nm(d.to)}`, `${W} a transmis ${t} de ${nm(d.from)} à ${nm(d.to)}`, `${W} نقل ${t} من ${nm(d.from)} إلى ${nm(d.to)}`);
+    case "deadline": return L(`${W} moved the deadline of ${t} from ${fmtD(d.from)} to ${fmtD(d.to)}`, `${W} a déplacé l’échéance de ${t} du ${fmtD(d.from)} au ${fmtD(d.to)}`, `${W} غيّر موعد ${t} من ${fmtD(d.from)} إلى ${fmtD(d.to)}`);
+    case "priority": return L(`${W} set ${t} to ${st(d.to)} priority`, `${W} a mis ${t} en priorité ${st(d.to)}`, `${W} جعل أولوية ${t} ${st(d.to)}`);
+    case "edited": return L(`${W} edited ${t}`, `${W} a modifié ${t}`, `${W} عدّل ${t}`);
+    case "steps": return L(`${W} updated the steps on ${t} (${d.done}/${d.total} done)`, `${W} a mis à jour les étapes de ${t} (${d.done}/${d.total} faites)`, `${W} حدّث خطوات ${t} (${d.done}/${d.total} منجزة)`);
+    case "commented": return L(`${W} commented on ${t}: “<span data-notr>${esc(d.text)}</span>”`, `${W} a commenté ${t} : « <span data-notr>${esc(d.text)}</span> »`, `${W} علّق على ${t}: «<span data-notr>${esc(d.text)}</span>»`);
+    case "attached": return L(`${W} attached <span data-notr>${esc(d.file)}</span> to ${t}`, `${W} a joint <span data-notr>${esc(d.file)}</span> à ${t}`, `${W} أرفق <span data-notr>${esc(d.file)}</span> بـ ${t}`);
+    case "deleted": return L(`${W} deleted ${t}`, `${W} a supprimé ${t}`, `${W} حذف ${t}`);
+    case "invited": return L(`${W} added ${M}${d.level ? ` at level ${esc(d.level)} (${st(levelName(d.level))})` : ""}`, `${W} a ajouté ${M}${d.level ? ` au niveau ${esc(d.level)} (${st(levelName(d.level))})` : ""}`, `${W} أضاف ${M}${d.level ? ` في المستوى ${esc(d.level)} (${st(levelName(d.level))})` : ""}`);
+    case "level": return L(`${W} moved ${M} from level ${esc(d.from)} to level ${esc(d.to)} (${st(levelName(d.to))})`, `${W} a passé ${M} du niveau ${esc(d.from)} au niveau ${esc(d.to)} (${st(levelName(d.to))})`, `${W} نقل ${M} من المستوى ${esc(d.from)} إلى المستوى ${esc(d.to)} (${st(levelName(d.to))})`);
+    case "rights": return L(`${W} set ${M}’s rights to ${esc(rightsList(d.rights))}`, `${W} a fixé les droits de ${M} à ${esc(rightsList(d.rights))}`, `${W} حدّد صلاحيات ${M}: ${esc(rightsList(d.rights))}`);
+    case "team": return L(`${W} moved ${M} from ${esc(d.from || "no team")} to ${esc(d.to || "no team")}`, `${W} a déplacé ${M} de ${esc(d.from || "aucune équipe")} vers ${esc(d.to || "aucune équipe")}`, `${W} نقل ${M} من ${esc(d.from || "بلا فريق")} إلى ${esc(d.to || "بلا فريق")}`);
+    case "password_sent": return L(`${W} sent ${M} a new password`, `${W} a envoyé un nouveau mot de passe à ${M}`, `${W} أرسل كلمة مرور جديدة إلى ${M}`);
+    case "role": return L(`${W} changed ${M}’s access`, `${W} a modifié l’accès de ${M}`, `${W} غيّر صلاحيات وصول ${M}`);
+    case "member_active": return L(`${M} joined the team`, `${M} a rejoint l’équipe`, `${M} انضم إلى الفريق`);
+    case "member_removed": return L(`${W} removed ${M}`, `${W} a retiré ${M}`, `${W} أزال ${M}`);
+    case "member_invited": return L(`${W} re-invited ${M}`, `${W} a réinvité ${M}`, `${W} أعاد دعوة ${M}`);
+    case "workspace_created": return L(`Team “<span data-notr>${esc(d.name)}</span>” created`, `Équipe « <span data-notr>${esc(d.name)}</span> » créée`, `تم إنشاء فريق «<span data-notr>${esc(d.name)}</span>»`);
+    case "submitted": return L(`${W} submitted ${t} for approval`, `${W} a soumis ${t} pour validation`, `${W} أرسل ${t} للموافقة`);
+    case "sent_back": return L(`${W} sent ${t} back for changes`, `${W} a renvoyé ${t} pour corrections`, `${W} أعاد ${t} للتعديل`);
+    case "repeat_skipped": return L(`The next copy of ${t} wasn’t created: ${esc(d.reason || "")}`, `La prochaine occurrence de ${t} n’a pas été créée : ${esc(d.reason || "")}`, `لم تُنشأ النسخة التالية من ${t}: ${esc(d.reason || "")}`);
+    case "billing": return L(`Plan changed to ${esc(d.plan)} (${esc(d.status)})`, `Forfait changé : ${esc(d.plan)} (${esc(d.status)})`, `تغيّرت الخطة إلى ${esc(d.plan)} (${esc(d.status)})`);
+    default: return `${W}: ${esc(a.action)}`;
   }
 }
 const feedItem = (a) => `<div class="it"><span>${sentence(a)}</span><span class="when">${esc(fmtT(a.created_at))}</span></div>`;
@@ -567,16 +586,17 @@ function vTasks(q) {
 
 /* board: four status columns; drag a card to change its status (if you're allowed to) */
 const canMove = (t) => t.assignee_id === S.me.id || has(9) || (has(4) && reaches(member(t.assignee_id), 4));
+const bossOf = (t) => has(9) || (has(4) && (t.assignee_id === S.me.id || reaches(member(t.assignee_id), 4)));
 function boardCard(t) {
   const n = nameOf(t.assignee_id), steps = t.checklist || [];
   return `<a class="bcard ${isLate(t) ? "is-late" : ""}" href="#/tasks/${t.id}" draggable="${canMove(t)}" data-id="${t.id}">
     <span class="bc-top"><span class="pri ${esc(t.priority)}">${esc(t.priority)}</span><span class="due ${dueCls(t)}">${esc(dueText(t))}</span></span>
-    <span class="bc-title">${esc(t.title)}</span>
+    <span class="bc-title">${esc(t.title)}</span>${t.repeat && t.repeat !== "none" ? `<span class="small muted">↻ ${esc(REPEAT[t.repeat])}</span>` : ""}
     <span class="bc-foot">${av(n)}<span>${esc(n || "Unassigned")}</span>${steps.length ? `<span class="mono muted">${steps.filter((x) => x.done).length}/${steps.length}</span>` : ""}</span></a>`;
 }
 function boardHtml(rows) {
   return `<div class="board-scroll"><div class="board">${STATUS_KEYS.map((st) => { const col = rows.filter((t) => t.status === st);
-    return `<section class="bcol" data-col="${st}"><header><span class="dot s-${st}"></span>${STATUS[st]}<span class="mono">${col.length}</span></header>${col.map(boardCard).join("") || `<p class="bempty">Nothing here</p>`}</section>`; }).join("")}</div></div>`;
+    return `<section class="bcol" data-col="${st}"><header><span class="dot s-${st}"></span>${SHORT[st]}<span class="mono">${col.length}</span></header>${col.map(boardCard).join("") || `<p class="bempty">Nothing here</p>`}</section>`; }).join("")}</div></div>`;
 }
 function wireBoard() {
   let dragId = null;
@@ -621,8 +641,9 @@ function vNew(q) {
   <div class="ai-box" style="max-width:760px">
     <label for="aiText"><span class="ai-badge">${ic("spark")}AI</span> Describe the task in your own words</label>
     <textarea class="field" id="aiText" placeholder="Sara should prepare the Q4 sales report for the board by next Tuesday, it’s urgent"></textarea>
-    <div class="actions"><button class="btn primary" type="button" id="aiGo">${ic("spark")}Write it for me</button><span class="small muted" id="aiStatus">AI fills in the form and picks the best person. You check it before it’s sent.</span></div>
+    <div class="actions"><button class="btn primary" type="button" id="aiGo">${ic("spark")}Write it for me</button><button class="btn" type="button" id="mic" hidden>${ic("mic")}<span>Speak</span></button><span class="small muted" id="aiStatus">AI fills in the form and picks the best person. You check it before it’s sent.</span></div>
   </div>
+  <div class="tpl-row" id="tplRow" hidden style="max-width:760px"><label class="lb">${ic("tpl")} Start from a template<select class="field" id="tplPick"><option value="">Choose a template…</option></select></label></div>
   <form class="panel form" id="f" novalidate style="max-width:760px">
     <div class="full" id="aiReason"></div>
     <label class="lb full">Title<input class="field" name="title" maxlength="200" placeholder="Prepare the Q4 sales report" required></label>
@@ -631,17 +652,22 @@ function vNew(q) {
       ${people.map((m) => `<option value="${esc(m.id)}" ${pre === m.id ? "selected" : ""}>${esc(m.name)} — ${openCount(m.id)}/${m.max_open} open${m.available ? "" : ", away"}${m.status === "invited" ? ", invited" : ""}</option>`).join("")}</select></label>
     <label class="lb">Deadline<input class="field" name="deadline" type="date" value="${addDays(today(), 3)}" required></label>
     <label class="lb">Priority<select class="field" name="priority">${PRI.map((p) => `<option ${p === "Medium" ? "selected" : ""}>${p}</option>`).join("")}</select></label>
+    <label class="lb">Repeats<select class="field" name="repeat">${Object.entries(REPEAT).map(([k, v]) => `<option value="${k}">${v}</option>`).join("")}</select></label>
     <label class="lb full">Steps <span class="hint">one per line, optional</span><textarea class="field" name="steps" style="min-height:96px"></textarea></label>
-    <div class="full actions"><button class="btn primary" type="submit">Assign task</button><a class="btn ghost" href="#/${isBoss() ? "tasks" : "my"}">Cancel</a><span class="err" id="err"></span></div>
+    <label class="lb full" style="flex-direction:row;gap:10px;align-items:center;font-weight:400;color:var(--ink)"><input type="checkbox" name="needs_approval"> I approve it before it counts as done</label>
+    <div class="full actions"><button class="btn primary" type="submit">Assign task</button><button class="btn" type="button" id="tplSave">${ic("tpl")}Save as template</button><a class="btn ghost" href="#/${isBoss() ? "tasks" : "my"}">Cancel</a><span class="err" id="err"></span></div>
+    <div class="full tpl-name" id="tplName" hidden><input class="field" id="tplNameIn" maxlength="80" placeholder="Template name, for example Monthly close" aria-label="Template name"><button class="btn primary small" type="button" id="tplNameGo">Save template</button></div>
     <p class="full small muted" style="margin:0">The person gets an email right away, a reminder 2 days before, and on the day. If it runs late, you’re told too.</p>
   </form>`;
   $("#aiText").onkeydown = (e) => { if (e.key === "Enter" && (e.metaKey || e.ctrlKey)) $("#aiGo").click(); };
+  wireVoice($("#mic"), $("#aiText"), $("#aiStatus"));
+  wireTemplates();
   $("#aiGo").onclick = async () => {
     const text = $("#aiText").value.trim(), b = $("#aiGo"), st = $("#aiStatus");
     if (!text) { st.innerHTML = `<span class="err">Write what needs doing first.</span>`; $("#aiText").focus(); return; }
     busy(b, true, "Writing…"); st.textContent = "Reading your request and checking who has room…";
     try {
-      const d = await db.aiDraft(S.ws.id, text), F = $("#f");
+      const d = await db.aiDraft(S.ws.id, text, LANG), F = $("#f");
       F.title.value = d.title; F.description.value = d.description || ""; F.deadline.value = d.deadline; F.priority.value = d.priority;
       if (d.assignee_id && [...F.assignee_id.options].some((o) => o.value === d.assignee_id)) F.assignee_id.value = d.assignee_id;
       F.steps.value = (d.steps || []).join("\n");
@@ -657,10 +683,80 @@ function vNew(q) {
     busy(b, true, "Saving…");
     try {
       const t = await db.createTask({ workspace_id: S.ws.id, title: f.title.trim(), description: f.description.trim(), assignee_id: f.assignee_id || null,
-        deadline: f.deadline, priority: f.priority, checklist: f.steps.split("\n").map((s) => s.trim()).filter(Boolean).map((text) => ({ text, done: false })) });
+        deadline: f.deadline, priority: f.priority, repeat: f.repeat || "none", needs_approval: !!e.target.needs_approval.checked, checklist: f.steps.split("\n").map((s) => s.trim()).filter(Boolean).map((text) => ({ text, done: false })) });
       S.tasks.push(t); toast(f.assignee_id ? `Sent to ${nameOf(f.assignee_id)}` : "Task saved"); go("tasks/" + t.id);
     } catch (err) { $("#err").textContent = err.message; busy(b, false); }
   };
+}
+
+/* ---------- voice note → task (speech is turned into text by the browser) ---------- */
+function wireVoice(btn, box, status) {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR || !btn) return;
+  btn.hidden = false;
+  let rec = null, base = "";
+  const stop = () => { if (rec) rec.stop(); };
+  btn.onclick = () => {
+    if (rec) { stop(); return; }
+    rec = new SR();
+    rec.lang = { ar: "ar-SA", fr: "fr-FR", en: "en-US" }[LANG] || "en-US";
+    rec.interimResults = true; rec.continuous = true;
+    base = box.value.trim() ? box.value.trim() + " " : "";
+    rec.onresult = (e) => { let txt = ""; for (const r of e.results) txt += r[0].transcript; box.value = base + txt.trim(); };
+    rec.onerror = (e) => { status.innerHTML = `<span class="err">${esc(e.error === "not-allowed" ? T("Allow the microphone in your browser to speak a task.") : T("Couldn’t hear that. Try again."))}</span>`; };
+    rec.onend = () => { rec = null; btn.classList.remove("rec"); btn.querySelector("span").textContent = T("Speak"); if (box.value.trim()) { status.textContent = T("Got it. Press Write it for me."); } };
+    rec.start(); btn.classList.add("rec"); btn.querySelector("span").textContent = T("Stop");
+    status.textContent = T("Listening… say who, what and by when. Press Stop when you’re done.");
+  };
+}
+
+/* ---------- task templates ---------- */
+async function wireTemplates() {
+  const F = $("#f"), pick = $("#tplPick");
+  let list = [];
+  const load = async () => {
+    try { list = await db.templates(S.ws.id); } catch { list = []; }
+    pick.innerHTML = `<option value="">${esc(T("Choose a template…"))}</option>` + list.map((x) => `<option value="${esc(x.id)}">${esc(x.name)}</option>`).join("");
+    $("#tplRow").hidden = !list.length;
+  };
+  await load();
+  pick.onchange = () => {
+    const x = list.find((y) => y.id === pick.value); if (!x) return;
+    F.title.value = x.title; F.description.value = x.description || ""; F.priority.value = x.priority; F.repeat.value = x.repeat;
+    F.needs_approval.checked = !!x.needs_approval; F.deadline.value = addDays(today(), x.days_to_deadline);
+    F.steps.value = (x.checklist || []).map((c) => c.text).join("\n");
+    F.classList.add("filled"); setTimeout(() => F.classList.remove("filled"), 1200);
+  };
+  $("#tplSave").onclick = () => {
+    if (!F.title.value.trim()) { $("#err").textContent = T("Add a title first."); return; }
+    $("#tplName").hidden = false; $("#tplNameIn").value = F.title.value.trim().slice(0, 80); $("#tplNameIn").focus();
+  };
+  $("#tplNameGo").onclick = async () => {
+    const name = $("#tplNameIn").value.trim(); if (!name) return;
+    const days = F.deadline.value ? Math.max(0, dd(today(), F.deadline.value)) : 3;
+    try {
+      await db.saveTemplate({ workspace_id: S.ws.id, name, title: F.title.value.trim(), description: F.description.value, priority: F.priority.value,
+        repeat: F.repeat.value || "none", needs_approval: !!F.needs_approval.checked, days_to_deadline: Math.min(365, days), created_by: S.me.id,
+        checklist: F.steps.value.split("\n").map((t) => t.trim()).filter(Boolean).map((text) => ({ text, done: false })) });
+      $("#tplName").hidden = true; toast(T("Template saved")); await load();
+    } catch (err) { $("#err").textContent = err.message; }
+  };
+}
+
+/* status buttons: tasks that need approval are submitted by the doer and approved by their boss */
+function statusControls(t, canEdit) {
+  const btn = (s, label, cls = "") => `<button type="button" class="${cls}" data-st="${s}" aria-pressed="${t.status === s}"><span class="dot s-${s}"></span>${label}</button>`;
+  if (t.needs_approval && t.status === "review") {
+    return canEdit
+      ? `<div class="approve-bar"><span><b>Waiting for your approval.</b> Check the work, then approve it or send it back with a comment.</span><span class="actions"><button type="button" class="btn primary small" data-st="done">Approve</button><button type="button" class="btn small" data-st="progress">Send back</button></span></div>`
+      : `<div class="approve-bar"><span><b>Submitted for approval.</b> Your manager has been told.</span><span class="actions"><button type="button" class="btn small" data-st="progress">Take it back</button></span></div>`;
+  }
+  const keys = ["todo", "progress", "blocked"];
+  if (t.needs_approval && !(canEdit && t.status === "done")) {
+    const last = canEdit ? btn("done", "Done") : btn("review", "Submit for approval");
+    return `<div class="seg" role="group" aria-label="Status">${keys.map((s) => btn(s, STATUS[s])).join("")}${t.status === "done" ? btn("done", "Done") : last}</div>`;
+  }
+  return `<div class="seg" role="group" aria-label="Status">${[...keys, "done"].map((s) => btn(s, STATUS[s])).join("")}</div>`;
 }
 
 /* ---------- one task ---------- */
@@ -680,7 +776,7 @@ async function vTask(id) {
   <div class="task">
     <div>
       ${canEdit ? `<input class="title-input" id="title" value="${esc(t.title)}" maxlength="200" aria-label="Title">` : `<h1>${esc(t.title)}</h1>`}
-      <div class="seg" role="group" aria-label="Status">${STATUS_KEYS.map((s) => `<button type="button" data-st="${s}" aria-pressed="${t.status === s}"><span class="dot s-${s}"></span>${STATUS[s]}</button>`).join("")}</div>
+      ${statusControls(t, canEdit)}
       <div class="sec"><div class="sec-h"><h2>Details</h2></div>
         ${canEdit ? `<textarea class="field" id="desc" placeholder="What “done” looks like, links, context">${esc(t.description)}</textarea>` : `<p style="white-space:pre-wrap;margin:0">${esc(t.description) || '<span class="muted">No details.</span>'}</p>`}</div>
       <div class="sec"><div class="sec-h"><h2>Steps</h2><span class="mono muted">${steps.length ? `${steps.filter((s) => s.done).length}/${steps.length}` : ""}</span></div>
@@ -699,7 +795,9 @@ async function vTask(id) {
         <dt>Assigned to</dt><dd>${canEdit ? `<select class="field" id="who">${isManager() ? `<option value="">Unassigned</option>` : ""}${people.map((m) => `<option value="${esc(m.id)}" ${m.id === t.assignee_id ? "selected" : ""}>${esc(m.name)} (${openCount(m.id)}/${m.max_open})</option>`).join("")}</select>` : esc(nameOf(t.assignee_id) || (t.assignee_id === S.me.id ? S.me.name : "Unassigned"))}</dd>
         <dt>Deadline</dt><dd>${canEdit ? `<input class="field" type="date" id="due" value="${esc(t.deadline)}">` : esc(fmtD(t.deadline))} <div class="due ${dueCls(t)}" style="margin-top:4px">${isOpen(t) ? esc(dueText(t)) : ""}</div></dd>
         <dt>Priority</dt><dd>${canEdit ? `<select class="field" id="pri">${PRI.map((p) => `<option ${p === t.priority ? "selected" : ""}>${p}</option>`).join("")}</select>` : `<span class="pri ${esc(t.priority)}">${esc(t.priority)}</span>`}</dd>
-        <dt>Created</dt><dd class="small">${esc(fmtT(t.created_at))}${t.created_by ? ` by ${esc(nameOf(t.created_by) || "a manager")}` : ""}</dd>
+        <dt>Repeats</dt><dd>${canEdit ? `<select class="field" id="rep">${Object.entries(REPEAT).map(([k, v]) => `<option value="${k}" ${k === (t.repeat || "none") ? "selected" : ""}>${v}</option>`).join("")}</select>` : esc(REPEAT[t.repeat || "none"])}</dd>
+        <dt>Approval</dt><dd>${canEdit ? `<label class="small" style="display:flex;gap:8px;align-items:center"><input type="checkbox" id="appr" ${t.needs_approval ? "checked" : ""}> Needs approval before it’s done</label>` : t.needs_approval ? "Needs approval before it’s done" : "Not needed"}</dd>
+        <dt>Created</dt><dd class="small">${esc(fmtT(t.created_at))}${t.created_by ? ` ${L("by", "par", "بواسطة")} <span data-notr>${esc(nameOf(t.created_by) || "a manager")}</span>` : ""}</dd>
         ${t.completed_at ? `<dt>Finished</dt><dd class="small">${esc(fmtT(t.completed_at))} ${t.completed_at.slice(0, 10) <= t.deadline ? '<span class="chip ok">On time</span>' : '<span class="chip bad">Late</span>'}</dd>` : ""}
       </dl>${canEdit ? `<div class="actions" style="margin-top:12px"><button class="btn primary small" id="save" type="button" hidden>Save changes</button><span class="err" id="serr"></span></div>` : ""}</div>
       <div class="panel"><h2>History</h2><div class="feed">${history.map(feedItem).join("") || `<p class="muted small" style="margin:0">Nothing yet.</p>`}</div></div>
@@ -711,7 +809,7 @@ async function vTask(id) {
     try { t = await db.updateTask(id, patch); const i = S.tasks.findIndex((x) => x.id === id); if (i >= 0) S.tasks[i] = t; else S.tasks.push(t); if (msg) toast(msg); await vTask(id); }
     catch (e) { toast(e.message); }
   };
-  view().querySelectorAll("[data-st]").forEach((b) => (b.onclick = () => b.dataset.st !== t.status && refresh({ status: b.dataset.st }, `Marked ${STATUS[b.dataset.st]}`)));
+  view().querySelectorAll("[data-st]").forEach((b) => (b.onclick = () => b.dataset.st !== t.status && refresh({ status: b.dataset.st }, b.dataset.st === "review" ? "Sent for approval" : t.status === "review" && b.dataset.st === "done" ? "Approved" : t.status === "review" ? "Sent back" : `Marked ${STATUS[b.dataset.st]}`)));
   view().querySelectorAll("[data-ck]").forEach((c) => (c.onchange = () => refresh({ checklist: steps.map((s, i) => (i === +c.dataset.ck ? { ...s, done: c.checked } : s)) })));
   view().querySelectorAll("[data-ckdel]").forEach((c) => (c.onclick = () => refresh({ checklist: steps.filter((_, i) => i !== +c.dataset.ckdel) })));
   $("#addStep").onsubmit = (e) => { e.preventDefault(); const v = e.target.s.value.trim(); if (v) refresh({ checklist: [...steps, { text: v, done: false }] }); };
@@ -732,13 +830,13 @@ async function vTask(id) {
 
   if (canEdit) {
     const save = $("#save");
-    const dirty = () => { save.hidden = !($("#title").value.trim() !== t.title || $("#desc").value !== t.description || $("#who").value !== (t.assignee_id || "") || $("#due").value !== t.deadline || $("#pri").value !== t.priority); };
-    ["#title", "#desc", "#who", "#due", "#pri"].forEach((s) => { $(s).oninput = dirty; $(s).onchange = dirty; });
+    const dirty = () => { save.hidden = !($("#title").value.trim() !== t.title || $("#desc").value !== t.description || $("#who").value !== (t.assignee_id || "") || $("#due").value !== t.deadline || $("#pri").value !== t.priority || $("#rep").value !== (t.repeat || "none") || $("#appr").checked !== !!t.needs_approval); };
+    ["#title", "#desc", "#who", "#due", "#pri", "#rep", "#appr"].forEach((s) => { $(s).oninput = dirty; $(s).onchange = dirty; });
     save.onclick = async () => {
       const title = $("#title").value.trim(); if (!title) { $("#serr").textContent = "The title can’t be empty."; return; }
       if (!$("#due").value) { $("#serr").textContent = "Pick a deadline."; return; }
       busy(save, true, "Saving…");
-      await refresh({ title, description: $("#desc").value, assignee_id: $("#who").value || null, deadline: $("#due").value, priority: $("#pri").value }, "Saved");
+      await refresh({ title, description: $("#desc").value, assignee_id: $("#who").value || null, deadline: $("#due").value, priority: $("#pri").value, repeat: $("#rep").value, needs_approval: $("#appr").checked }, "Saved");
     };
   }
   const del = $("#del");
@@ -770,10 +868,10 @@ function vPeople() {
       <h2>${L.temp ? `Login for ${esc(L.name)}` : `${esc(L.name)} is on the team`}</h2>
       ${L.temp ? `<dl class="facts"><dt>Email</dt><dd class="mono">${esc(L.email)}</dd><dt>Temporary password</dt><dd><span class="mono pw" id="pw">${esc(L.temp)}</span> <button class="btn small" type="button" id="copyLogin">Copy login</button></dd></dl>
         <p class="small muted" style="margin:10px 0 0">We emailed this to ${esc(L.email)}. You can also send it by WhatsApp. It won’t be shown again. They’ll choose their own password the first time they sign in.</p>`
-      : `<p class="small muted" style="margin:0">They already had a Handoff account, so they sign in with their usual password. We emailed them.</p>`}
+      : `<p class="small muted" style="margin:0">They already had a Delegiq account, so they sign in with their usual password. We emailed them.</p>`}
       <div class="actions" style="margin-top:10px"><button class="btn ghost small" type="button" id="closeLogin">Done</button></div></div>` : "";
   const addForm = (has(7) || has(9)) && choices.length ? `<div class="panel" style="margin-bottom:14px"><h2>Add someone</h2>
-    <p class="small muted" style="margin:-6px 0 12px">Handoff creates their login and emails them a temporary password.${has(9) ? "" : ` They join your team (${esc(S.me.team || "none")}) below your level.`}</p>
+    <p class="small muted" style="margin:-6px 0 12px">Delegiq creates their login and emails them a temporary password.${has(9) ? "" : ` They join your team (${esc(S.me.team || "none")}) below your level.`}</p>
     <form class="form" id="inv" novalidate>
       <label class="lb">Name<input class="field" name="name" required></label>
       <label class="lb">Email<input class="field" name="email" type="email" required></label>
@@ -834,7 +932,7 @@ function vPeople() {
   }));
   if ($("#closeLogin")) $("#closeLogin").onclick = () => { S.lastLogin = null; vPeople(); };
   if ($("#copyLogin")) $("#copyLogin").onclick = async () => {
-    const text = `Your Handoff login\nWebsite: ${location.origin + location.pathname}\nEmail: ${L.email}\nTemporary password: ${L.temp}\nYou'll choose your own password when you first sign in.`;
+    const text = `Your Delegiq login\nWebsite: ${location.origin + location.pathname}\nEmail: ${L.email}\nTemporary password: ${L.temp}\nYou'll choose your own password when you first sign in.`;
     try { await navigator.clipboard.writeText(text); toast("Copied. Paste it into WhatsApp or a message."); }
     catch { const r = document.createRange(); r.selectNodeContents($("#pw")); getSelection().removeAllRanges(); getSelection().addRange(r); toast("Select and copy the password"); }
   };
@@ -906,7 +1004,7 @@ function vReports(q) {
     return { name: m.name, role: levelTag(m), given, done: done.length, onTime, pct: done.length ? Math.round((onTime / done.length) * 100) : null,
       avgLate: lateDays.length ? (lateDays.reduce((a, b) => a + b, 0) / lateDays.length).toFixed(1) : null, lateNow: mine.filter(isLate).length, open: mine.filter(isOpen).length };
   });
-  const label = new Date(month + "-01T00:00:00Z").toLocaleDateString(undefined, { month: "long", year: "numeric", timeZone: "UTC" });
+  const label = new Date(month + "-01T00:00:00Z").toLocaleDateString(LOCALE(), { month: "long", year: "numeric", timeZone: "UTC" });
   view().innerHTML = `<div class="page-head"><h1>Report · ${esc(label)}</h1>
     <input class="field no-print" type="month" id="m" value="${esc(month)}" style="width:auto" aria-label="Month">
     <button class="btn no-print" id="csv" type="button">Download for Excel</button><button class="btn no-print" id="pr" type="button">Print or save as PDF</button></div>
@@ -921,7 +1019,7 @@ function vReports(q) {
     const lines = [head, ...rows.map((r) => [r.name, r.role, r.given, r.done, r.onTime, r.pct ?? "", r.avgLate ?? "", r.lateNow, r.open])]
       .map((l) => l.map((v) => `"${String(v).replace(/"/g, '""')}"`).join(","));
     const url = URL.createObjectURL(new Blob(["﻿" + lines.join("\r\n")], { type: "text/csv" }));
-    const a = Object.assign(document.createElement("a"), { href: url, download: `handoff-report-${month}.csv` });
+    const a = Object.assign(document.createElement("a"), { href: url, download: `delegiq-report-${month}.csv` });
     document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 2000);
   };
 }
@@ -936,6 +1034,18 @@ function vSettings() {
         <label class="lb full" style="flex-direction:row;gap:10px;font-weight:400;color:var(--ink)"><input type="radio" name="mode" value="digest" ${S.me.notify_mode === "digest" ? "checked" : ""}> One summary each morning</label>
       </form>
       <p class="small muted" style="margin:8px 0 0">Late, blocked and invite emails always arrive right away. Emails go to ${esc(S.email)}.</p></div>
+    <div class="panel"><h2>${ic("wa")} WhatsApp reminders</h2>
+      <form id="waf" class="form" novalidate>
+        <label class="lb">Your WhatsApp number<input class="field" name="phone" inputmode="tel" placeholder="+974 5555 1234" value="${esc(S.me.phone || "")}"></label>
+        <label class="lb full" style="flex-direction:row;gap:10px;font-weight:400;color:var(--ink)"><input type="checkbox" name="wa" ${S.me.whatsapp ? "checked" : ""}> Send me new tasks, deadline reminders and late or blocked tasks on WhatsApp too</label>
+        <div class="full actions"><button class="btn primary small" type="submit">Save</button><span class="err" id="waerr"></span></div>
+      </form>
+      <p class="small muted" style="margin:8px 0 0">Write the number with the country code. You can turn this off anytime. WhatsApp reminders come with the free trial and the Team and Business plans.</p></div>
+    <div class="panel"><h2>Language</h2>
+      <div class="seg" role="group" aria-label="Language">${Object.entries(LANGS).map(([k, v]) => `<button type="button" data-lang="${k}" aria-pressed="${LANG === k}" lang="${k}">${v}</button>`).join("")}</div>
+      <p class="small muted" style="margin:8px 0 0">Changes the screens and the AI’s answers for you only.</p></div>
+    ${has(3) || has(9) ? `<div class="panel" id="tplPanel"><h2>${ic("tpl")} Task templates</h2><p class="muted" style="margin:0">Loading…</p></div>` : ""}
+    ${has(10) ? `<div class="panel" id="billing"><h2>Plan &amp; billing</h2><p class="muted" style="margin:0">Loading…</p></div>` : ""}
     ${has(10) ? `<div class="panel"><h2>Company settings</h2>
       <form id="wf" class="form" novalidate>
         <label class="lb full">Team name<input class="field" name="name" value="${esc(S.ws.name)}"></label>
@@ -961,6 +1071,19 @@ function vSettings() {
   $("#nf").onchange = async (e) => {
     try { await db.setNotifyMode(S.ws.id, e.target.value); S.me.notify_mode = e.target.value; toast("Saved"); } catch (err) { toast(err.message); }
   };
+  if (has(10)) loadBilling();
+  if (has(3) || has(9)) loadTemplatePanel();
+  $("#waf").onsubmit = async (e) => {
+    e.preventDefault(); const f = e.target;
+    try { await db.setPrefs(S.ws.id, { lang: LANG, phone: f.phone.value.trim() || null, whatsapp: f.wa.checked });
+      S.me.phone = f.phone.value.trim(); S.me.whatsapp = f.wa.checked; $("#waerr").textContent = ""; toast(T("Saved")); }
+    catch (err) { $("#waerr").textContent = err.message; }
+  };
+  view().querySelectorAll("[data-lang]").forEach((b) => (b.onclick = async () => {
+    setLang(b.dataset.lang);
+    try { await db.setPrefs(S.ws.id, { lang: b.dataset.lang, phone: S.me.phone || null, whatsapp: !!S.me.whatsapp }); S.me.lang = b.dataset.lang; } catch {}
+    render();
+  }));
   $("#out").onclick = () => auth.signOut();
   $("#outAll").onclick = async (e) => { if (e.target.dataset.sure !== "1") { e.target.dataset.sure = "1"; e.target.textContent = "Sign out of every device, including this one?"; return; } await auth.signOutEverywhere(); };
   if ($("#mfaOn")) $("#mfaOn").onclick = () => vMfaSetup(false);
@@ -989,6 +1112,59 @@ function vSettings() {
       S.ws = { ...S.ws, ...w }; S.me.workspaces = S.ws; toast("Saved"); renderChrome("settings");
     } catch (err) { $("#werr").textContent = err.message; }
   };
+}
+
+async function loadTemplatePanel() {
+  const el = $("#tplPanel"); if (!el) return;
+  let list = []; try { list = await db.templates(S.ws.id); } catch (err) { el.innerHTML = `<h2>${esc(T("Task templates"))}</h2><p class="err">${esc(err.message)}</p>`; return; }
+  el.innerHTML = `<h2>${ic("tpl")} ${esc(T("Task templates"))}</h2>${list.length ? `<div class="tpl-list">${list.map((x) => `<div class="tpl-item"><div><b>${esc(x.name)}</b><div class="small muted">${esc(x.title)} · ${x.checklist.length} ${esc(T("steps"))}${x.repeat !== "none" ? " · " + esc(T(REPEAT[x.repeat])) : ""}</div></div>${x.created_by === S.me.id || has(9) ? `<button class="btn small danger" type="button" data-tdel="${esc(x.id)}">${esc(T("Delete"))}</button>` : ""}</div>`).join("")}</div>`
+    : `<p class="muted" style="margin:0">${esc(T("No templates yet. On New task, fill in a task and press Save as template."))}</p>`}`;
+  el.querySelectorAll("[data-tdel]").forEach((b) => (b.onclick = async () => { try { await db.deleteTemplate(b.dataset.tdel); toast(T("Deleted")); loadTemplatePanel(); } catch (err) { toast(err.message); } }));
+}
+
+/* ---------- plan & billing ---------- */
+const fmtDay = (iso) => iso ? new Date(iso).toLocaleDateString(LOCALE(), { day: "numeric", month: "short", year: "numeric" }) : "";
+const daysLeft = (iso) => Math.max(0, Math.ceil((Date.parse(iso) - Date.now()) / 864e5));
+function planLine(b) {
+  if (b.status === "comp") return "Owner account · free";
+  if (b.status === "trialing") return b.active ? `Free trial · ${daysLeft(b.trial_ends_at)} day${daysLeft(b.trial_ends_at) === 1 ? "" : "s"} left` : "Your free trial has ended";
+  if (b.status === "active") return `${b.plan_name}${b.period_end ? ` · renews ${fmtDay(b.period_end)}` : ""}`;
+  if (b.status === "past_due") return `${b.plan_name} · the last payment failed. Update your card to keep your plan.`;
+  if (b.status === "cancelled" && b.active) return `${b.plan_name} · cancelled, ends ${fmtDay(b.period_end)}`;
+  return "No active plan";
+}
+function checkoutUrl(p) {
+  const u = p.checkout_url;
+  return `${u}${u.includes("?") ? "&" : "?"}checkout[custom][workspace_id]=${encodeURIComponent(S.ws.id)}&checkout[email]=${encodeURIComponent(S.email || "")}`;
+}
+async function loadBilling() {
+  const el = $("#billing"); if (!el) return;
+  let b; try { b = await db.billing(S.ws.id); } catch (err) { el.innerHTML = `<h2>Plan &amp; billing</h2><p class="err">${esc(err.message)}</p>`; return; }
+  const paying = ["active", "past_due"].includes(b.status) || (b.status === "cancelled" && b.active);
+  el.innerHTML = `<h2>Plan &amp; billing</h2>
+    <div class="bill-now ${b.active ? "" : "off"}"><div><b>${esc(planLine(b))}</b>
+      <div class="small muted">${b.seats_used} of ${b.seat_limit} people on your plan${!b.active ? " · you can still see and update your work, but not add tasks or people" : ""}</div></div>
+      ${b.portal_url ? `<a class="btn small" href="${esc(b.portal_url)}" target="_blank" rel="noopener">Manage subscription</a>` : ""}</div>
+    ${b.status === "comp" ? "" : `<div class="plans">${(b.plans || []).map((p) => {
+      const current = paying && b.plan === p.id;
+      return `<div class="plan ${current ? "cur" : ""}"><div class="pn" data-notr>${esc(p.name)}</div><div class="pp"><b>$${p.price_usd}</b><span class="muted small">/month</span></div>
+        <div class="small muted">Up to ${p.seat_limit} people</div>
+        ${current ? `<span class="chip ok">Your plan</span>`
+          : paying ? (b.portal_url ? `<a class="btn small" href="${esc(b.portal_url)}" target="_blank" rel="noopener">Switch to ${esc(p.name)}</a>` : "")
+          : p.checkout_url ? `<a class="btn small primary" href="${esc(checkoutUrl(p))}" target="_blank" rel="noopener">Choose ${esc(p.name)}</a>`
+          : `<span class="small muted">Payments open soon</span>`}</div>`; }).join("")}</div>
+    <p class="small muted" style="margin:10px 0 0">Prices in US dollars. Sales tax is added where required. Cancel anytime from Manage subscription. ${paying ? "Plan changes are made in Manage subscription, and the price difference is worked out for you." : ""}</p>`}`;
+}
+async function trialBanner() {
+  if (!has(10)) return;
+  let b; try { b = await db.billing(S.ws.id); } catch { return; }
+  const soon = b.status === "trialing" && b.active && daysLeft(b.trial_ends_at) <= 5;
+  if (!(soon || !b.active || b.status === "past_due")) return;
+  const msg = !b.active ? "Your free trial has ended. You can still see your work, but you can’t add tasks or people until you choose a plan."
+    : b.status === "past_due" ? "Your last payment didn’t go through. Update your card to keep Delegiq running."
+    : `Your free trial ends in ${daysLeft(b.trial_ends_at)} day${daysLeft(b.trial_ends_at) === 1 ? "" : "s"}.`;
+  const v = view(); if (!v || v.querySelector(".trial-bar")) return;
+  v.insertAdjacentHTML("afterbegin", `<div class="trial-bar ${b.active ? "" : "off"}"><span>${esc(msg)}</span><a class="btn small primary" href="#/settings">${b.status === "past_due" ? "Update card" : "Choose a plan"}</a></div>`);
 }
 
 function confirmOnce(el, msg) { if (el.dataset.sure === "1") return true; el.dataset.sure = "1"; el.querySelector(".err").textContent = msg; return false; }

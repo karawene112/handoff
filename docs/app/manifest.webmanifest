@@ -1,6 +1,6 @@
 {
-  "name": "Handoff",
-  "short_name": "Handoff",
+  "name": "Delegiq",
+  "short_name": "Delegiq",
   "description": "Hand out work, track deadlines, and get told when something slips.",
   "start_url": "./",
   "display": "standalone",
