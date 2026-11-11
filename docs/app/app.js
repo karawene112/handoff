@@ -99,12 +99,12 @@ async function boot() {
   auth.onChange(async (event, session) => {
     if (event === "PASSWORD_RECOVERY") { S.recovery = true; S.session = session; go("new-password"); return; }
     if (event === "SIGNED_OUT") { Object.assign(S, { session: null, uid: null, mems: [], me: null, ws: null, members: [], tasks: [], loaded: false }); render(); return; }
-    if (event === "SIGNED_IN" && session && session.user.id !== S.uid) { await onSession(session); render(); }
+    if (event === "SIGNED_IN" && session && session.user.id !== S.uid && !starting) { await startSession(session); render(); }
   });
   let session = await auth.session();
   if (session && Date.now() - lastActive() > IDLE_MS) { await auth.signOut(); session = null; S.idleOut = true; }
   touch(); watchIdle();
-  if (session) await onSession(session);
+  if (session) await startSession(session);
   S.booted = true;
   render();
   setInterval(() => { if (S.ws && !document.hidden && !isTyping()) reload(true); }, 60000);
@@ -112,6 +112,9 @@ async function boot() {
 }
 const isTyping = () => { const a = document.activeElement; return a && /^(INPUT|TEXTAREA|SELECT)$/.test(a.tagName) && a.value; };
 
+// only one sign-in setup at a time (the boot check and the sign-in event can arrive together)
+let starting = null;
+function startSession(session) { return starting || (starting = onSession(session).finally(() => { starting = null; })); }
 async function onSession(session) {
   S.session = session; S.uid = session.user.id; S.email = session.user.email;
   S.mustChange = !!session.user.user_metadata?.must_change_password;
@@ -157,11 +160,11 @@ function watchIdle() {
 async function reload(quiet) {
   try {
     const [members, tasks, levels] = await Promise.all([db.members(S.ws.id), db.tasks(S.ws.id), db.levels(S.ws.id)]);
-    S.members = members; S.tasks = tasks; S.levels = levels; S.loaded = true;
+    S.members = members; S.tasks = tasks; S.levels = levels; S.loaded = true; S.loadErr = "";
     const mine = members.find((m) => m.user_id === S.uid);
     if (mine) S.me = { ...S.me, ...mine };
     if (quiet) { const r = route(); if (!["new", "people", "settings"].includes(r.parts[0]) && r.parts[0] !== "tasks" || (r.parts[0] === "tasks" && !r.parts[1])) render(); }
-  } catch (e) { if (!quiet) toast(e.message); }
+  } catch (e) { if (!S.loaded) S.loadErr = e.message; if (!quiet) toast(e.message); }
 }
 
 /* ---------- icons (outline, 24px grid) ---------- */
@@ -239,7 +242,15 @@ async function render() {
   if (S.gate === "setup") { renderChrome(); return vMfaSetup(true); }
   if (S.gate === "code") { renderChrome(); return vMfaCode(); }
   if (!S.me) { renderChrome(); return vSetup(); }
-  if (!S.loaded) { view().innerHTML = `<p class="muted pad">Loading…</p>`; return; }
+  if (!S.loaded) {
+    view().innerHTML = S.loadErr
+      ? `<div class="pad"><p class="err">${esc(S.loadErr)}</p><button class="btn" id="retryLoad" type="button">Try again</button></div>`
+      : `<p class="muted pad">Loading…</p>`;
+    const again = () => { S.loadErr = ""; reload().then(render); };
+    if (S.loadErr) $("#retryLoad").onclick = again;
+    else if (S.ws && !starting && !render.waiting) { render.waiting = true; setTimeout(() => { render.waiting = false; if (!S.loaded && !starting) again(); }, 1500); }
+    return;
+  }
 
   const allowed = navItems().map((n) => n[0]).concat(has(3) || has(9) ? ["new"] : []).concat(["tasks", "more"]);
   const p = page && allowed.includes(page) ? page : (["login", "signup", ""].includes(page) ? homePage() : page);
